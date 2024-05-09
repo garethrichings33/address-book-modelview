@@ -3,6 +3,7 @@ from ContactWindow import Ui_ContactWindow
 from PySide6.QtWidgets import QPushButton, QMainWindow, QApplication, QMessageBox
 from PySide6.QtCore import QAbstractListModel, QModelIndex, QPersistentModelIndex, Qt
 import sys
+import json
 
 if __name__ == "__main__":
 
@@ -11,7 +12,8 @@ if __name__ == "__main__":
             super().__init__()
             self.setupUi(self)
 
-            self.model = ContactsModel(contacts=[])
+            self.model = ContactsModel()
+            self.load()
             self.contactList.setModel(self.model)
 
             self.connect_buttons()
@@ -51,6 +53,7 @@ if __name__ == "__main__":
 
         def delete_contact(self, contact_id):
             self.model.contacts.pop(contact_id)
+            self.save()
             self.deleteContactButton.setEnabled(False)
             self.viewContactButton.setEnabled(False)
             self.model.layoutChanged.emit()
@@ -60,6 +63,18 @@ if __name__ == "__main__":
                 self, self.model, contact_id)
             self.setEnabled(False)
             self.view_contact_window.show()
+
+        def load(self):
+            try:
+                with open('data.json', 'r') as f:
+                    self.model.contacts = sorted(
+                        json.load(f), key=lambda d: d['id'])
+            except Exception as ex:
+                print(ex)
+
+        def save(self):
+            with open('data.json', 'w') as f:
+                json.dump(self.model.contacts, f)
 
     class ContactsModel(QAbstractListModel):
         def __init__(self, *args, contacts=None, **kwargs):
@@ -269,7 +284,10 @@ if __name__ == "__main__":
             if self.contact_altered and not self.contact_saved:
                 self.contact_not_saved_warning()
             else:
+                self.model.contacts = sorted(
+                    self.model.contacts, key=lambda d: d['id'])
                 self.model.layoutChanged.emit()
+                self.main_window.save()
                 self.close()
                 self.main_window.setEnabled(True)
 
@@ -433,6 +451,10 @@ if __name__ == "__main__":
 
             if contact['id']:
                 self.model.contacts.append(contact)
+                self.main_window.save()
+
+                self.model.contacts = sorted(
+                    self.model.contacts, key=lambda d: d['id'])
                 self.model.layoutChanged.emit()
 
                 self.close()
